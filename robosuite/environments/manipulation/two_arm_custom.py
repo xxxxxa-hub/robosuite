@@ -161,7 +161,7 @@ class TwoArmCustom(TwoArmEnv):
         use_camera_obs=True,
         use_object_obs=True,
         reward_scale=1.0,
-        reward_shaping=False,
+        reward_shaping=True,
         placement_initializer=None,
         has_renderer=False,
         has_offscreen_renderer=True,
@@ -382,16 +382,30 @@ class TwoArmCustom(TwoArmEnv):
             material=redwood,
         )
 
+        self.cube_2 = BoxObject(
+            name="cube_2",
+            size_min=[0.020, 0.020, 0.020],  # [0.015, 0.015, 0.015],
+            size_max=[0.022, 0.022, 0.022],  # [0.018, 0.018, 0.018])
+            rgba=[1, 0, 0, 1],
+            material=redwood,
+        )
+
+        self.objects = []
+
+        self.objects.append(self.cube)
+        self.objects.append(self.cube_2)
+
         # Create placement initializer
         if self.placement_initializer is not None:
             self.placement_initializer.reset()
-            self.placement_initializer.add_objects(self.cube)
+            self.placement_initializer.add_objects(self.objects)
+            # self.placement_initializer.add_objects(self.visual_milk)
         else:
             # Set rotation about y-axis if hammer starts on table else rotate about z if it starts in gripper
             # rotation_axis = "y" if self.prehensile else "z"
             self.placement_initializer = UniformRandomSampler(
                 name="ObjectSampler",
-                mujoco_objects=self.cube,
+                mujoco_objects=self.objects,
                 x_range=[-0.1, 0.1],
                 y_range=[-0.05, 0.05],
                 rotation=None,
@@ -406,7 +420,7 @@ class TwoArmCustom(TwoArmEnv):
         self.model = ManipulationTask(
             mujoco_arena=mujoco_arena,
             mujoco_robots=[robot.robot_model for robot in self.robots],
-            mujoco_objects=self.cube,
+            mujoco_objects=self.objects,
         )
 
     def _setup_references(self):
@@ -423,6 +437,14 @@ class TwoArmCustom(TwoArmEnv):
 
         # Additional object references from this env
         self.cube_body_id = self.sim.model.body_name2id(self.cube.root_body)
+        
+        # self.obj_body_id = {}
+        # self.obj_geom_id = {}
+
+        # object-specific ids
+        # for obj in self.objects:
+        #     self.obj_body_id[obj.name] = self.sim.model.body_name2id(obj.root_body)
+        #     self.obj_geom_id[obj.name] = [self.sim.model.geom_name2id(g) for g in obj.contact_geoms]
 
         # General env references
         self.table_top_id = self.sim.model.site_name2id("table_top")
@@ -515,6 +537,13 @@ class TwoArmCustom(TwoArmEnv):
                 # If prehensile, set the object normally
                 if self.prehensile:
                     self.sim.data.set_joint_qpos(obj.joints[0], np.concatenate([np.array(obj_pos), np.array(obj_quat)]))
+                    # if "visual" in obj.name.lower():
+                    #     self.sim.model.body_pos[self.obj_body_id[obj.name]] = obj_pos
+                    #     self.sim.model.body_quat[self.obj_body_id[obj.name]] = obj_quat
+                    # else:
+                    #     # Set the collision object joints
+                    #     self.sim.data.set_joint_qpos(obj.joints[0], np.concatenate([np.array(obj_pos), np.array(obj_quat)]))
+
                 # Else, set the object in the hand of the robot and loop a few steps to guarantee the robot is grasping
                 #   the object initially
                 else:

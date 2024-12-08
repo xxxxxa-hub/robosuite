@@ -1,5 +1,8 @@
 from robosuite.controllers import load_controller_config
 from robosuite.utils.input_utils import *
+from robosuite.wrappers.gym_wrapper import GymWrapper
+from stable_baselines3 import SAC
+
 
 if __name__ == "__main__":
 
@@ -50,14 +53,20 @@ if __name__ == "__main__":
         use_camera_obs=False,
         control_freq=20,
     )
+    env = GymWrapper(env)
     env.reset()
     env.viewer.set_camera(camera_id=0)
 
     # Get action limits
     low, high = env.action_spec
 
+    model = SAC("MlpPolicy", env, verbose=1, learning_rate=1e-3)
+    model.learn(total_timesteps=1e5)
+    model.save("sac_pendulum")
+
+
     # do visualization
-    for i in range(10000):
-        action = np.random.uniform(low, high)
-        obs, reward, done, _ = env.step(action)
-        env.render()
+    # for i in range(10000):
+    #     action = np.random.uniform(low, high)
+    #     obs, reward, terminated, truncated, _ = env.step(action)
+    #     env.render()

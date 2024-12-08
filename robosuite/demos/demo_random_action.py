@@ -61,12 +61,12 @@ if __name__ == "__main__":
     low, high = env.action_spec
 
     model = SAC("MlpPolicy", env, verbose=1, learning_rate=1e-3)
-    model.learn(total_timesteps=1e5)
+    model.learn(total_timesteps=1e4)
     model.save("sac_pendulum")
 
 
     # do visualization
-    # for i in range(10000):
-    #     action = np.random.uniform(low, high)
-    #     obs, reward, terminated, truncated, _ = env.step(action)
-    #     env.render()
+    for i in range(10000):
+        action = np.random.uniform(low, high)
+        obs, reward, terminated, truncated, _ = env.step(action)
+        env.render()

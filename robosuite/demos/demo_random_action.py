@@ -1,7 +1,12 @@
 from robosuite.controllers import load_controller_config
 from robosuite.utils.input_utils import *
 from robosuite.wrappers.gym_wrapper import GymWrapper
-from stable_baselines3 import SAC
+from stable_baselines3 import SAC, PPO
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.logger import configure
+import gymnasium as gym
+import wandb
+from wandb.integration.sb3 import WandbCallback
 
 
 if __name__ == "__main__":
@@ -49,24 +54,31 @@ if __name__ == "__main__":
         **options,
         has_renderer=True,
         has_offscreen_renderer=False,
-        ignore_done=True,
+        ignore_done=False,
         use_camera_obs=False,
         control_freq=20,
+        reward_shaping=True
     )
     env = GymWrapper(env)
+    # env = gym.make("Pendulum-v1")
+    env = Monitor(env,"/tmp/")
     env.reset()
-    env.viewer.set_camera(camera_id=0)
+    # env.viewer.set_camera(camera_id=0)
 
     # Get action limits
-    low, high = env.action_spec
+    # low, high = env.action_spec
+    model = PPO("MlpPolicy", env, verbose=1, learning_rate=1e-3)# , tensorboard_log=f"runs/{run.id}")
 
-    model = SAC("MlpPolicy", env, verbose=1, learning_rate=1e-3)
-    model.learn(total_timesteps=1e4)
+    model.learn(total_timesteps=1e6, log_interval=1)
+                # callback=WandbCallback(
+                # model_save_path=f"models/{run.id}",
+                # verbose=2,))
     model.save("sac_pendulum")
 
+    # run.finish()
 
     # do visualization
-    for i in range(10000):
-        action = np.random.uniform(low, high)
-        obs, reward, terminated, truncated, _ = env.step(action)
-        env.render()
+    # for i in range(10000):
+    #     action = np.random.uniform(low, high)
+    #     obs, reward, terminated, truncated, _ = env.step(action)
+    #     env.render()

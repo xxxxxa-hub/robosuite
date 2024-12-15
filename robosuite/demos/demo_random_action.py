@@ -1,10 +1,11 @@
 from robosuite.controllers import load_controller_config
 from robosuite.utils.input_utils import *
-from robosuite.wrappers.gym_wrapper import GymWrapper
+from robosuite.wrappers.gym_wrapper import GymWrapper, SingleArmGymWrapper
 from stable_baselines3 import SAC, PPO, TD3
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.logger import configure
 from stable_baselines3.common.callbacks import EvalCallback
+from stable_baselines3.common.evaluation import evaluate_policy
 import gymnasium as gym
 import wandb
 from wandb.integration.sb3 import WandbCallback
@@ -60,7 +61,8 @@ if __name__ == "__main__":
         ignore_done=False,
         use_camera_obs=False,
         control_freq=20,
-        reward_shaping=True
+        reward_shaping=True,
+        horizon=500,
     )
 
     eval_env = suite.make(
@@ -70,33 +72,50 @@ if __name__ == "__main__":
         ignore_done=False,
         use_camera_obs=False,
         control_freq=20,
-        reward_shaping=True
+        reward_shaping=True,
+        horizon=500,
     )
-
-    env = GymWrapper(env)
-    eval_env = GymWrapper(eval_env)
-    # env = gym.make("Pendulum-v1")
+    
+    env = SingleArmGymWrapper(env)
+    eval_env = SingleArmGymWrapper(eval_env)
+    env.viewer.set_camera(camera_id=0)
+    eval_env.viewer.set_camera(camera_id=0)
     env = Monitor(env,"train_monitor/")
     eval_env = Monitor(eval_env,"eval_monitor/")
 
     env.reset()
-    env.viewer.set_camera(camera_id=0)
     eval_env.reset()
-    eval_env.viewer.set_camera(camera_id=0)
+    
 
-    eval_callback = EvalCallback(eval_env, best_model_save_path="models/",
-                              log_path="eval_logs/", eval_freq=5000,
-                              n_eval_episodes=5, deterministic=True,
-                              render=False)
-
+    # eval_callback = EvalCallback(eval_env, best_model_save_path="models/",
+    #                           log_path="eval_logs/", eval_freq=5000,
+    #                           n_eval_episodes=10, deterministic=True,
+    #                           render=False)
+    
     # Get action limits
-    low, high = env.action_spec
-    model = TD3("MlpPolicy", env, verbose=1, learning_rate=1e-3)# , tensorboard_log=f"runs/{run.id}")
+    low = env.action_space.low
+    high = env.action_space.high
 
-    model.learn(total_timesteps=5e5, log_interval=1, callback=eval_callback)
-    model.save("td3_lift")
+    # Train model
+    model = TD3("MlpPolicy", env, verbose=1, learning_rate=3e-4)
+    model.learn(total_timesteps=3e5, log_interval=1)
+    model.save("td3_door")
+    
+    # Load model
+    # model = TD3.load("td3_door", env=env)
 
-    # run.finish()
+    # Evaluate
+    # mean_reward, std_reward = evaluate_policy(model, model.get_env(), n_eval_episodes=10)
+    # print("Mean reward: ", mean_reward)
+    # print("Std reward: ", std_reward)
+                  
+    # Visualize
+    # vec_env = model.get_env()
+    # obs = vec_env.reset()
+    # for i in range(2000):
+    #     action, _states = model.predict(obs, deterministic=True)
+    #     obs, rewards, dones, info = vec_env.step(action)
+    #     vec_env.envs[0].env.render()
 
     # do visualization
     # for i in range(10000):
